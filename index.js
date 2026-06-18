@@ -185,6 +185,76 @@ app.post("/poll", async (req, res) => {
   }
 });
 
+// ─── Endpoint: consulta de facturas (para análisis) ─────────────────────────
+// GET /invoices?from=2026-06-01&to=2026-06-18&limit=100
+// Devuelve facturas con datos del cliente para cruzar con Meta Ads
+app.get("/invoices", async (req, res) => {
+  try {
+    const from  = req.query.from  || new Date(Date.now() - 30*24*60*60*1000).toISOString().split("T")[0];
+    const to    = req.query.to    || new Date().toISOString().split("T")[0];
+    const limit = Math.min(parseInt(req.query.limit) || 100, 300);
+
+    const result = [];
+    let start = 0;
+    const fromDate = new Date(from);
+    const toDate   = new Date(to + "T23:59:59");
+
+    while (result.length < limit) {
+      const params = new URLSearchParams({ order: "desc", start: String(start), limit: "30" });
+      const r = await fetch(`https://api.alegra.com/api/v1/invoices?${params}`, {
+        headers: alegraHeaders(),
+      });
+      if (!r.ok) throw new Error(`Alegra ${r.status}: ${await r.text()}`);
+      const page = await r.json();
+      if (!page.length) break;
+
+      let foundOlder = false;
+      for (const inv of page) {
+        const fecha = new Date(inv.date || inv.dueDate);
+        if (fecha > toDate) continue;
+        if (fecha < fromDate) { foundOlder = true; break; }
+        if (inv.status === "void") continue;
+
+        const client = inv.client || {};
+        const items  = (inv.items || []).map(i => ({
+          name:     i.name || i.description || "",
+          quantity: i.quantity || 1,
+          price:    i.price || 0,
+        }));
+
+        result.push({
+          id:       inv.id,
+          date:     inv.date,
+          status:   inv.status,
+          total:    inv.total,
+          currency: inv.currency?.code || "DOP",
+          client: {
+            id:    client.id,
+            name:  client.name || "",
+            email: client.email || null,
+            phone: client.phonePrimary || client.phoneNumber || client.phone || client.mobile || null,
+            identification: client.identification || null,
+          },
+          items,
+        });
+        if (result.length >= limit) break;
+      }
+      if (foundOlder || page.length < 30) break;
+      start += 30;
+    }
+
+    res.json({
+      ok:      true,
+      from,
+      to,
+      total:   result.length,
+      invoices: result,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Webhook de Alegra (por si en el futuro logran registrarlo)
 app.get("/webhook/alegra",  (req, res) => res.status(200).json({ status: "ok" }));
 app.post("/webhook/alegra", async (req, res) => {
