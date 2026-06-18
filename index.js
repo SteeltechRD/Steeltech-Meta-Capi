@@ -83,25 +83,21 @@ function alegraHeaders() {
 }
 
 async function getPaidInvoicesSince(since) {
-  // since = Date ISO string — filtramos facturas modificadas desde esa fecha
+  // Traemos todas las facturas (cualquier estado) — la factura en sí es la venta
   const params = new URLSearchParams({
-    status:    "closed",
-    order:     "desc",
-    start:     "0",
-    limit:     "30",
-    dateRange: "custom",
-    // Alegra no tiene filtro por fecha de pago en todos los planes,
-    // así que traemos las últimas 50 cerradas y filtramos por fecha
+    order: "desc",
+    start: "0",
+    limit: "30",
   });
   const res = await fetch(`https://api.alegra.com/api/v1/invoices?${params}`, {
     headers: alegraHeaders(),
   });
   if (!res.ok) throw new Error(`Alegra API ${res.status}: ${await res.text()}`);
   const invoices = await res.json();
-  // Filtrar las pagadas después de "since"
+  // Filtrar por fecha de creación de la factura
   return invoices.filter((inv) => {
-    const paid = inv.dueDate || inv.closedDate || inv.date;
-    return paid && new Date(paid) >= new Date(since);
+    const fecha = inv.date || inv.dueDate;
+    return fecha && new Date(fecha) >= new Date(since);
   });
 }
 
