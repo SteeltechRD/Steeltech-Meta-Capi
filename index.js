@@ -88,7 +88,7 @@ async function getPaidInvoicesSince(since) {
     status:    "closed",
     order:     "desc",
     start:     "0",
-    limit:     "50",
+    limit:     "30",
     dateRange: "custom",
     // Alegra no tiene filtro por fecha de pago en todos los planes,
     // así que traemos las últimas 50 cerradas y filtramos por fecha
