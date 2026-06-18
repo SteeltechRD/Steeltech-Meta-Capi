@@ -128,7 +128,7 @@ async function pollAlegra() {
       if (sentInvoices.has(id)) continue;
 
       const client   = inv.client || {};
-      const phone    = client.phoneNumber || client.phone || client.mobile || null;
+      const phone    = client.phonePrimary || client.phoneNumber || client.phone || client.mobile || null;
       const email    = client.email || null;
       const fullName = client.name || "";
       const value    = inv.total || 0;
@@ -166,9 +166,18 @@ app.get("/", (req, res) => res.json({
 }));
 
 // Forzar un poll manual (útil para probar)
+// Acepta ?since=2026-06-10 para buscar desde una fecha específica
 app.post("/poll", async (req, res) => {
-  await pollAlegra();
-  res.json({ ok: true, lastPoll: lastPollTime });
+  if (req.query.since) {
+    const prev = lastPollTime;
+    lastPollTime = new Date(req.query.since).toISOString();
+    await pollAlegra();
+    res.json({ ok: true, testedSince: req.query.since, lastPoll: lastPollTime });
+    lastPollTime = prev; // restaurar
+  } else {
+    await pollAlegra();
+    res.json({ ok: true, lastPoll: lastPollTime });
+  }
 });
 
 // Webhook de Alegra (por si en el futuro logran registrarlo)
@@ -181,7 +190,7 @@ app.post("/webhook/alegra", async (req, res) => {
       return res.status(200).json({ message: `Ignored: status='${status}'` });
     }
     const client   = invoice.client || {};
-    const phone    = client.phoneNumber || client.phone || null;
+    const phone    = client.phonePrimary || client.phoneNumber || client.phone || client.mobile || null;
     const email    = client.email || null;
     const fullName = client.name || "";
     const value    = invoice.total || 0;
