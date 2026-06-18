@@ -53,13 +53,14 @@ async function sendPurchaseToMeta({ phone, email, fullName, value, currency, eve
     data: [{
       event_name:    "Purchase",
       event_time:    Math.floor(Date.now() / 1000),
-      action_source: "other",
+      action_source: "business_messaging", // compras por WhatsApp/DM
       event_id:      eventId,
       user_data:     userData,
       custom_data: {
         value:        parseFloat(value) || 0,
         currency:     (currency || "DOP").toUpperCase(),
         content_type: "product",
+        contents:     [{ id: eventId, quantity: 1 }],
       },
     }],
   };
