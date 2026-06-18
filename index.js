@@ -29,7 +29,13 @@ function sha256(value) {
 
 function normalizePhone(phone) {
   if (!phone) return undefined;
-  return String(phone).replace(/\D/g, "");
+  const digits = String(phone).replace(/\D/g, "");
+  // Agregar código de país 1 (República Dominicana) si no lo tiene
+  // Números RD: 809, 829, 849 → deben enviarse como 1809..., 1829..., 1849...
+  if (digits.length === 10 && /^(809|829|849)/.test(digits)) {
+    return "1" + digits;
+  }
+  return digits;
 }
 
 function splitName(fullName = "") {
@@ -46,6 +52,7 @@ async function sendPurchaseToMeta({ phone, email, fullName, value, currency, eve
     em: sha256(email),
     fn: sha256(first),
     ln: sha256(last),
+    country: sha256("do"), // República Dominicana
   };
   Object.keys(userData).forEach((k) => userData[k] === undefined && delete userData[k]);
 
