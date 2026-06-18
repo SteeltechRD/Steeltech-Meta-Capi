@@ -64,6 +64,11 @@ async function sendPurchaseToMeta({ phone, email, fullName, value, currency, eve
   return result;
 }
 
+// Alegra valida el endpoint con GET antes de registrar el webhook
+app.get("/webhook/alegra", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+
 app.post("/webhook/alegra", async (req, res) => {
   try {
     if (WEBHOOK_SECRET) {
@@ -73,12 +78,19 @@ app.post("/webhook/alegra", async (req, res) => {
 
     const body = req.body;
     const invoice = body.data || body;
+
+    // Solo procesar facturas pagadas (status: closed o paid)
+    const status = invoice.status || invoice.invoiceStatus || "";
+    if (!["closed", "paid", "total"].includes(status.toLowerCase())) {
+      return res.status(200).json({ message: `Ignored: invoice status is '${status}'` });
+    }
+
     const client = invoice.client || {};
     const phone = client.phoneNumber || client.phone || client.mobile || null;
     const email = client.email || null;
     const fullName = client.name || client.fullName || "";
     const value = invoice.total || invoice.grandTotal || 0;
-    const currency = invoice.currency?.code || invoice.currencyCode || "USD";
+    const currency = invoice.currency?.code || invoice.currencyCode || "DOP";
     const eventId = `alegra-invoice-${invoice.id || Date.now()}`;
 
     if (!phone && !email) return res.status(200).json({ message: "Ignored: no customer identifiers" });
