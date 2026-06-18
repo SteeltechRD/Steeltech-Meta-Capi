@@ -83,22 +83,30 @@ function alegraHeaders() {
 }
 
 async function getPaidInvoicesSince(since) {
-  // Traemos todas las facturas (cualquier estado) — la factura en sí es la venta
-  const params = new URLSearchParams({
-    order: "desc",
-    start: "0",
-    limit: "30",
-  });
-  const res = await fetch(`https://api.alegra.com/api/v1/invoices?${params}`, {
-    headers: alegraHeaders(),
-  });
-  if (!res.ok) throw new Error(`Alegra API ${res.status}: ${await res.text()}`);
-  const invoices = await res.json();
-  // Filtrar por fecha de creación de la factura
-  return invoices.filter((inv) => {
-    const fecha = inv.date || inv.dueDate;
-    return fecha && new Date(fecha) >= new Date(since);
-  });
+  // Pagina hasta traer todas las facturas desde "since"
+  const sinceDate = new Date(since);
+  const result = [];
+  let start = 0;
+
+  while (true) {
+    const params = new URLSearchParams({ order: "desc", start: String(start), limit: "30" });
+    const res = await fetch(`https://api.alegra.com/api/v1/invoices?${params}`, {
+      headers: alegraHeaders(),
+    });
+    if (!res.ok) throw new Error(`Alegra API ${res.status}: ${await res.text()}`);
+    const page = await res.json();
+    if (!page.length) break;
+
+    let foundOlder = false;
+    for (const inv of page) {
+      const fecha = new Date(inv.date || inv.dueDate);
+      if (fecha < sinceDate) { foundOlder = true; break; }
+      if (inv.status !== "void") result.push(inv); // excluir anuladas
+    }
+    if (foundOlder || page.length < 30) break;
+    start += 30;
+  }
+  return result;
 }
 
 // ─── Polling ────────────────────────────────────────────────────────────────
