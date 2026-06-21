@@ -57,7 +57,7 @@ async function fetchAlegraInvoices(since) {
   }
 
   const dateStr = since.toISOString().split("T")[0]; // YYYY-MM-DD
-  const url = `https://app.alegra.com/api/v1/invoices?status=paid&date-start=${dateStr}&limit=100`;
+  const url = `https://app.alegra.com/api/v1/invoices?status=paid&date-start=${dateStr}&limit=30`;
   const auth = Buffer.from(`${ALEGRA_EMAIL}:${ALEGRA_TOKEN}`).toString("base64");
 
   const res = await fetch(url, {
